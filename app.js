@@ -60,6 +60,92 @@ function renderPatternCard(pattern) {
   return card;
 }
 
+function prefersReducedMotion() {
+  return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+}
+
+function animateAttrs(attrs) {
+  if (prefersReducedMotion()) return '';
+  return attrs
+    .map(
+      ({ name, values, dur, begin }) =>
+        `<animate attributeName="${name}" values="${values}" dur="${dur}" ${begin ? `begin="${begin}"` : ''} repeatCount="indefinite"/>`
+    )
+    .join('');
+}
+
+function renderChannelFlow() {
+  const wrap = document.createElement('figure');
+  wrap.className = 'flow-diagram';
+  wrap.innerHTML = `
+    <figcaption class="flow-caption">Instructions and data share one channel</figcaption>
+    <svg viewBox="0 0 600 170" role="img" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+      <line class="flow-rail instr" x1="70" y1="40" x2="330" y2="85"/>
+      <line class="flow-rail data" x1="70" y1="130" x2="330" y2="85"/>
+      <line class="flow-rail merged" x1="330" y1="85" x2="560" y2="85"/>
+
+      <circle class="flow-node-core" cx="70" cy="40" r="6"/>
+      <circle class="flow-node-core" cx="70" cy="130" r="6"/>
+      <circle class="flow-node-core model" cx="330" cy="85" r="9"/>
+      <circle class="flow-node-core" cx="560" cy="85" r="6"/>
+
+      <text class="flow-label" x="70" y="22" text-anchor="middle">User input</text>
+      <text class="flow-label" x="70" y="152" text-anchor="middle">Tool / doc output</text>
+      <text class="flow-label strong" x="330" y="112" text-anchor="middle">Model context window</text>
+      <text class="flow-label" x="560" y="112" text-anchor="middle">Response / action</text>
+      <text class="flow-annotate" x="445" y="72" text-anchor="middle">no structural boundary</text>
+
+      <circle class="flow-packet instr" r="4" cx="70" cy="40">
+        ${animateAttrs([
+          { name: 'cx', values: '70;330', dur: '2.6s' },
+          { name: 'cy', values: '40;85', dur: '2.6s' },
+        ])}
+      </circle>
+      <circle class="flow-packet data" r="4" cx="70" cy="130">
+        ${animateAttrs([
+          { name: 'cx', values: '70;330', dur: '2.6s', begin: '0.4s' },
+          { name: 'cy', values: '130;85', dur: '2.6s', begin: '0.4s' },
+        ])}
+      </circle>
+      <circle class="flow-packet merged" r="4" cx="330" cy="85">
+        ${animateAttrs([{ name: 'cx', values: '330;560', dur: '1.7s', begin: '0.9s' }])}
+      </circle>
+    </svg>
+  `;
+  return wrap;
+}
+
+function renderDefenseFlow() {
+  const wrap = document.createElement('figure');
+  wrap.className = 'flow-diagram';
+  wrap.innerHTML = `
+    <figcaption class="flow-caption">Layered controls before an action executes</figcaption>
+    <svg viewBox="0 0 640 140" role="img" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+      <line class="flow-rail merged" x1="50" y1="70" x2="590" y2="70"/>
+
+      <circle class="flow-node-core risk" cx="50" cy="70" r="7"/>
+      <circle class="flow-node-core gate" cx="158" cy="70" r="7"/>
+      <circle class="flow-node-core gate" cx="266" cy="70" r="7"/>
+      <circle class="flow-node-core gate" cx="374" cy="70" r="7"/>
+      <circle class="flow-node-core gate-outer" cx="482" cy="70" r="10"/>
+      <circle class="flow-node-core gate-inner" cx="482" cy="70" r="4"/>
+      <circle class="flow-node-core safe" cx="590" cy="70" r="7"/>
+
+      <text class="flow-label" x="50" y="94" text-anchor="middle">Untrusted input</text>
+      <text class="flow-label" x="158" y="94" text-anchor="middle">Filter</text>
+      <text class="flow-label" x="266" y="94" text-anchor="middle">Sandbox</text>
+      <text class="flow-label" x="374" y="94" text-anchor="middle">Least privilege</text>
+      <text class="flow-label" x="482" y="94" text-anchor="middle">Human approval</text>
+      <text class="flow-label strong" x="590" y="94" text-anchor="middle">Action executed</text>
+
+      <circle class="flow-packet safe" r="5" cx="50" cy="70">
+        ${animateAttrs([{ name: 'cx', values: '50;158;266;374;482;590', dur: '6s' }])}
+      </circle>
+    </svg>
+  `;
+  return wrap;
+}
+
 function currentTheme() {
   const attr = document.documentElement.getAttribute('data-theme');
   if (attr === 'light' || attr === 'dark') return attr;
@@ -97,6 +183,11 @@ async function init() {
 
   const threatsEl = document.getElementById('threats');
   const patternsEl = document.getElementById('patterns');
+  const channelFlowEl = document.getElementById('flow-channel');
+  const defenseFlowEl = document.getElementById('flow-defense');
+
+  if (channelFlowEl) channelFlowEl.appendChild(renderChannelFlow());
+  if (defenseFlowEl) defenseFlowEl.appendChild(renderDefenseFlow());
 
   try {
     const res = await fetch('threats.json', { cache: 'no-store' });
